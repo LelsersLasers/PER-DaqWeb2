@@ -20,6 +20,7 @@ fn main() {
 }
 
 #[component]
+#[allow(non_snake_case)]
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
@@ -29,6 +30,7 @@ fn App() -> Element {
 }
 
 #[component]
+#[allow(non_snake_case)]
 pub fn Hero() -> Element {
     rsx! {
         div {
@@ -48,6 +50,7 @@ pub fn Hero() -> Element {
 
 /// Home page
 #[component]
+#[allow(non_snake_case)]
 fn Home() -> Element {
     rsx! {
         Hero {}
@@ -57,6 +60,7 @@ fn Home() -> Element {
 
 /// Blog page
 #[component]
+#[allow(non_snake_case)]
 pub fn Blog(id: i32) -> Element {
     rsx! {
         div {
@@ -102,8 +106,9 @@ fn Navbar() -> Element {
 
 /// Echo component that demonstrates fullstack server functions.
 #[component]
+#[allow(non_snake_case)]
 fn Echo() -> Element {
-    let mut response = use_signal(|| String::new());
+    let mut response = use_signal(String::new);
 
     rsx! {
         div {
