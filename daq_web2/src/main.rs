@@ -1,6 +1,9 @@
 mod assets;
 mod config;
 
+#[cfg(feature = "server")]
+mod server_helpers;
+
 use dioxus::prelude::*;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -31,16 +34,22 @@ fn main() {
 
 #[cfg(feature = "server")]
 async fn launch_server(component: fn() -> Element) {
+    let db_pool = server_helpers::db_helper::connect_db().await;
+    tracing::info!("Connected to SQLite database at {}", config::SQLITE_DB);
+
+    let app_state = server_helpers::app_state::AppState::new(db_pool);
+    tracing::info!("App state initialized");
+
     let ip =
         dioxus::cli_config::server_ip().unwrap_or_else(|| config::SERVER_ADDR.parse().unwrap());
     let port = dioxus::cli_config::server_port().unwrap_or(config::SERVER_PORT);
-
-    println!("Listening on http://{ip}:{port}");
+    tracing::info!("Listening on http://{ip}:{port}");
 
     let address = std::net::SocketAddr::new(ip, port);
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     let router = axum::Router::new()
-        .serve_dioxus_application(ServeConfigBuilder::default(), App)
+        .with_state(app_state)
+        .serve_dioxus_application(ServeConfigBuilder::default(), component)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
