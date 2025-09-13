@@ -1,7 +1,7 @@
 
 -- Uploads/Signals -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Uploads (
-    id				INTEGER PRIMARY KEY,
+	id				INTEGER PRIMARY KEY,
 	upload_name		TEXT NOT NULL,
 	commit_hash		TEXT NOT NULL,
 	start_time		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS Messages (
 	msg_id			INTEGER NOT NULL,
 	msg_name		TEXT NOT NULL,
 	timestamp_raw	INTEGER NOT NULL,
-	timestamp_adj   ?? NOT NULL,
+	timestamp_adj   TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
 	msg_desc		TEXT,
 
 	FOREIGN KEY (log_id) REFERENCES Logs(id) ON DELETE CASCADE
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS Posts (
 	id				INTEGER PRIMARY KEY,
 	post_title		TEXT NOT NULL,
 	post_desc		TEXT NOT NULL,
-	graph_query		?? NOT NULL,
+	graph_query		TEXT NOT NULL, -- TODO: actual type/format or split into multiple columns
 	created_at		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
 	updated_at		TEXT NOT NULL  -- YYYY-MM-DD HH:MM:SS.SSS
 );
