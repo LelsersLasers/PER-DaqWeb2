@@ -1,5 +1,5 @@
-mod config;
 mod assets;
+mod config;
 
 use dioxus::prelude::*;
 
@@ -12,8 +12,6 @@ enum Route {
     #[route("/blog/:id")]
     Blog { id: i32 },
 }
-
-
 
 fn main() {
     #[cfg(feature = "web")]
@@ -33,13 +31,15 @@ fn main() {
 
 #[cfg(feature = "server")]
 async fn launch_server(component: fn() -> Element) {
-    let ip = dioxus::cli_config::server_ip().unwrap_or_else(|| config::SERVER_ADDR.parse().unwrap());
+    let ip =
+        dioxus::cli_config::server_ip().unwrap_or_else(|| config::SERVER_ADDR.parse().unwrap());
     let port = dioxus::cli_config::server_port().unwrap_or(config::SERVER_PORT);
+
+    println!("Listening on http://{ip}:{port}");
 
     let address = std::net::SocketAddr::new(ip, port);
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     let router = axum::Router::new()
-        // serve_dioxus_application adds routes to server side render the application, serve static assets, and register server functions
         .serve_dioxus_application(ServeConfigBuilder::default(), App)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
