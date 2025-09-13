@@ -48,7 +48,8 @@ async fn launch_server(component: fn() -> Element) {
     let address = std::net::SocketAddr::new(ip, port);
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
     let router = axum::Router::new()
-        .with_state(app_state)
+        .layer(axum::Extension(app_state.clone()))
+        // .with_state(app_state)
         .serve_dioxus_application(ServeConfigBuilder::default(), component)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
@@ -177,4 +178,10 @@ fn Echo() -> Element {
 #[server(EchoServer)]
 async fn echo_server(input: String) -> Result<String, ServerFnError> {
     Ok(input)
+}
+
+#[server]
+pub async fn create_test(input: String) -> Result<String, ServerFnError> {
+    let axum::Extension(state): axum::Extension<server_helpers::app_state::AppState> = extract().await?;
+    Ok(format!("Created test with input: {}", input))
 }
