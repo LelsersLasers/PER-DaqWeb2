@@ -34,12 +34,6 @@ fn main() {
 
 #[cfg(feature = "server")]
 async fn launch_server(component: fn() -> Element) {
-    let db_pool = server_helpers::db_helper::connect_db().await;
-    tracing::info!("Connected to SQLite database at {}", config::SQLITE_DB);
-
-    let app_state = server_helpers::app_state::AppState::new(db_pool);
-    tracing::info!("App state initialized");
-
     let ip =
         dioxus::cli_config::server_ip().unwrap_or_else(|| config::SERVER_ADDR.parse().unwrap());
     let port = dioxus::cli_config::server_port().unwrap_or(config::SERVER_PORT);
@@ -47,9 +41,8 @@ async fn launch_server(component: fn() -> Element) {
 
     let address = std::net::SocketAddr::new(ip, port);
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+
     let router = axum::Router::new()
-        .layer(axum::Extension(app_state.clone()))
-        // .with_state(app_state)
         .serve_dioxus_application(ServeConfigBuilder::default(), component)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
@@ -147,10 +140,52 @@ fn Navbar() -> Element {
 }
 
 /// Echo component that demonstrates fullstack server functions.
+/// 
+/// 
+#[derive(Clone)]
+enum EchoMessage {
+    OnInput(String),
+}
+
+struct EchoState {
+    msg: String,
+}
+
 #[component]
 #[allow(non_snake_case)]
 fn Echo() -> Element {
-    let mut response = use_signal(String::new);
+    let mut echo_state = use_signal(|| EchoState { msg: String::new() });
+    let mut echo_msgs = use_signal(Vec::<EchoMessage>::new);
+    let mut new_msgs = use_signal(Vec::<EchoMessage>::new);
+
+    // First effect: Process input messages, may queue new messages
+    use_effect(move || {
+        let mut new_messages: Vec<EchoMessage> = Vec::new();
+        for echo_msg in echo_msgs.read().iter() {
+            match echo_msg {
+                EchoMessage::OnInput(data) => {
+                    echo_state.write().msg = data.to_string();
+                }
+            }
+        }
+        if !new_messages.is_empty() {
+            *new_msgs.write() = new_messages; // Write new messages to the separate signal
+        }
+    });
+
+    // Second effect: Move new_msgs to echo_msgs for next loop
+    use_effect(move || {
+        if !new_msgs.read().is_empty() {
+            *echo_msgs.write() = new_msgs.read().clone();
+            new_msgs.write().clear();
+        }
+    });
+
+    // Third effect: Clear processed input messages
+    use_effect(move || {
+        echo_msgs.write().clear();
+    });
+
 
     rsx! {
         div {
@@ -159,15 +194,29 @@ fn Echo() -> Element {
             input {
                 placeholder: "Type here to echo...",
                 oninput:  move |event| async move {
-                    let data = echo_server(event.value()).await.unwrap();
-                    response.set(data);
+                    // let data = create_test(event.value()).await.unwrap();
+                    let data = match create_test(event.value().to_string()).await {
+                        Ok(res) => res,
+                        Err(err) => format!("Error: {}", err),
+                    };
+                    // response.set(data);
+                    // echo_state.modify(|state| state.msg = data);
+                    // echo_state.msg = data;
+                    echo_msgs.push(EchoMessage::OnInput(data));
                 },
             }
 
-            if !response().is_empty() {
+            // if !response().is_empty() {
+            //     p {
+            //         "Server echoed: "
+            //         i { "{response}" }
+            //     }
+            // }
+
+            if !echo_state.read().msg.is_empty() {
                 p {
                     "Server echoed: "
-                    i { "{response}" }
+                    i { "{echo_state.read().msg}" }
                 }
             }
         }
@@ -175,13 +224,13 @@ fn Echo() -> Element {
 }
 
 /// Echo the user input on the server.
-#[server(EchoServer)]
-async fn echo_server(input: String) -> Result<String, ServerFnError> {
-    Ok(input)
-}
+// #[server(EchoServer)]
+// async fn echo_server(input: String) -> Result<String, ServerFnError> {
+//     Ok(input)
+// }
 
 #[server]
 pub async fn create_test(input: String) -> Result<String, ServerFnError> {
-    let axum::Extension(state): axum::Extension<server_helpers::app_state::AppState> = extract().await?;
+    let db = server_helpers::db::get_db_pool().await;
     Ok(format!("Created test with input: {}", input))
 }
