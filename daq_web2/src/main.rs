@@ -2,7 +2,7 @@ mod assets;
 mod config;
 
 #[cfg(feature = "server")]
-mod server_helpers;
+mod s_helpers;
 
 use dioxus::prelude::*;
 
@@ -231,6 +231,6 @@ fn Echo() -> Element {
 
 #[server]
 pub async fn create_test(input: String) -> Result<String, ServerFnError> {
-    let db = server_helpers::db::get_db_pool().await;
+    let db = s_helpers::db::get_db_pool().await;
     Ok(format!("Created test with input: {}", input))
 }
