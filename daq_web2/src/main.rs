@@ -1,15 +1,19 @@
+use dioxus::prelude::*;
+
 mod assets;
 mod config;
 
 #[cfg(feature = "server")]
 mod s_helpers;
 
-use dioxus::prelude::*;
+#[cfg(feature = "web")]
+mod ui;
+
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-    #[layout(Navbar)]
+    #[layout(ui::navbar::Navbar)]
     #[route("/")]
     Home {},
     #[route("/blog/:id")]
@@ -119,25 +123,7 @@ pub fn Blog(id: i32) -> Element {
 }
 
 /// Shared navbar component.
-#[component]
-#[allow(non_snake_case)]
-fn Navbar() -> Element {
-    rsx! {
-        div {
-            id: "navbar",
-            Link {
-                to: Route::Home {},
-                "Home"
-            }
-            Link {
-                to: Route::Blog { id: 1 },
-                "Blog"
-            }
-        }
 
-        Outlet::<Route> {}
-    }
-}
 
 /// Echo component that demonstrates fullstack server functions.
 /// 
