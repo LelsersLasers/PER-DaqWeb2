@@ -3,7 +3,7 @@
 [web.app]
 
 # HTML title tag content
-title = "daq_web2"
+title = "PER - DaqWeb2"
 
 # include `assets` in web platform
 [web.resource]
