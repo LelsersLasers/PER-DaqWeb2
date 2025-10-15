@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::ui::blog::Blog;
+use crate::ui::upload::Upload;
 use crate::ui::home::Home;
 use crate::ui::navbar::Navbar;
 
@@ -10,6 +10,6 @@ pub enum Route {
     #[layout(Navbar)]
     #[route("/")]
     Home {},
-    #[route("/blog/:id")]
-    Blog { id: i32 },
+    #[route("/upload")]
+    Upload {},
 }

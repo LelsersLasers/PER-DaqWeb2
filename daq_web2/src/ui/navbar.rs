@@ -11,8 +11,8 @@ pub fn Navbar() -> Element {
                 "Home"
             }
             Link {
-                to: routes::Route::Blog { id: 1 },
-                "Blog"
+                to: routes::Route::Upload {},
+                "Upload"
             }
         }
 
