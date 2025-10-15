@@ -1,13 +1,13 @@
 use dioxus::prelude::*;
 
-use crate::ui;
 use crate::ui::blog::Blog;
 use crate::ui::home::Home;
+use crate::ui::navbar::Navbar;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 pub enum Route {
-    #[layout(ui::navbar::Navbar)]
+    #[layout(Navbar)]
     #[route("/")]
     Home {},
     #[route("/blog/:id")]
