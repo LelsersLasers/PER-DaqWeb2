@@ -37,7 +37,7 @@ async fn launch_server(component: fn() -> Element) {
 
     let router = axum::Router::new()
         .serve_dioxus_application(ServeConfig::default(), component)
-        .layer(axum::extract::DefaultBodyLimit::max(BODY_LIMIT))
+        .layer(axum::extract::DefaultBodyLimit::max(config::BODY_LIMIT))
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
