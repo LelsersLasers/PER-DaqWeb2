@@ -74,26 +74,26 @@ CREATE TABLE IF NOT EXISTS SignalPresets (
 
 
 -- POSTS -------------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS Posts (
-	id				INTEGER PRIMARY KEY,
-	post_title		TEXT NOT NULL,
-	post_desc		TEXT NOT NULL,
-	graph_query		TEXT NOT NULL, -- TODO: actual type/format or split into multiple columns
-	created_at		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
-	updated_at		TEXT NOT NULL  -- YYYY-MM-DD HH:MM:SS.SSS
-);
+-- CREATE TABLE IF NOT EXISTS Posts (
+-- 	id				INTEGER PRIMARY KEY,
+-- 	post_title		TEXT NOT NULL,
+-- 	post_desc		TEXT NOT NULL,
+-- 	graph_query		TEXT NOT NULL, -- TODO: actual type/format or split into multiple columns
+-- 	created_at		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
+-- 	updated_at		TEXT NOT NULL  -- YYYY-MM-DD HH:MM:SS.SSS
+-- );
 
-CREATE TABLE IF NOT EXISTS PostTags (
-	id 			INTEGER PRIMARY KEY,
-	tag_name	TEXT NOT NULL,
-	color		TEXT NOT NULL -- Hex color code (e.g. #rrggbb)
-);
+-- CREATE TABLE IF NOT EXISTS PostTags (
+-- 	id 			INTEGER PRIMARY KEY,
+-- 	tag_name	TEXT NOT NULL,
+-- 	color		TEXT NOT NULL -- Hex color code (e.g. #rrggbb)
+-- );
 
-CREATE TABLE IF NOT EXISTS PostTagPairs (
-	id			INTEGER PRIMARY KEY,
-	post_id		INTEGER NOT NULL,
-	post_tag_id	INTEGER NOT NULL,
+-- CREATE TABLE IF NOT EXISTS PostTagPairs (
+-- 	id			INTEGER PRIMARY KEY,
+-- 	post_id		INTEGER NOT NULL,
+-- 	post_tag_id	INTEGER NOT NULL,
 
-	FOREIGN KEY (post_id) REFERENCES Posts(id) ON DELETE CASCADE,
-	FOREIGN KEY (post_tag_id) REFERENCES PostTags(id) ON DELETE CASCADE
-);
+-- 	FOREIGN KEY (post_id) REFERENCES Posts(id) ON DELETE CASCADE,
+-- 	FOREIGN KEY (post_tag_id) REFERENCES PostTags(id) ON DELETE CASCADE
+-- );
