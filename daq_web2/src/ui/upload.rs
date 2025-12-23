@@ -7,6 +7,8 @@ pub fn Upload() -> Element {
         h1 { "Upload Page" }
 
         form {
+            class: "p-4 bg-cyan-500",
+            
             label { r#for: "upload_name", "Upload name:" }
             input { r#type: "text", id: "upload_name", name: "upload_name", required: true }
             br {}
