@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
-use crate::ui::upload::Upload;
 use crate::ui::home::Home;
 use crate::ui::navbar::Navbar;
+use crate::ui::upload::Upload;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
