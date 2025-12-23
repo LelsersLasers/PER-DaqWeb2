@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+// use crate::backend;
+
 #[component]
 #[allow(non_snake_case)]
 pub fn Upload() -> Element {
@@ -8,14 +10,30 @@ pub fn Upload() -> Element {
 
         form {
             class: "p-4 bg-cyan-500",
-            
-            label { r#for: "upload_name", "Upload name:" }
-            input { r#type: "text", id: "upload_name", name: "upload_name", required: true }
-            br {}
+            // onsubmit: move |evt| {
+            //     evt.prevent_default();
+            //     let form = evt.into();
+            //     async move {
+            //         if *uploading.read() {
+            //             return;
+            //         }
 
-            label { r#for: "start_time", "Start time:" }
-            input { r#type: "datetime-local", id: "start_time", name: "start_time", required: true }
-            br {}
+            //         uploading.set(true);
+            //         let _ = backend::back::process_logs(form).await;
+            //         uploading.set(false);
+            //     }
+            // },
+            method: "post",
+            enctype: "multipart/form-data",
+            action: "/upload_logs",
+
+            // label { r#for: "upload_name", "Upload name:" }
+            // input { r#type: "text", id: "upload_name", name: "upload_name", required: true }
+            // br {}
+
+            // label { r#for: "start_time", "Start time:" }
+            // input { r#type: "datetime-local", id: "start_time", name: "start_time", required: true }
+            // br {}
 
             // TAGS
 
@@ -27,17 +45,17 @@ pub fn Upload() -> Element {
             input { r#type: "file", id: "log_files", name: "log_files", directory: true, required: true }
             br {}
 
-            label { r#for: "short_comments", "Short comments (optional):" }
-            input { r#type: "text", id: "short_comments", name: "short_comments" }
-            br {}
+            // label { r#for: "short_comments", "Short comments (optional):" }
+            // input { r#type: "text", id: "short_comments", name: "short_comments" }
+            // br {}
 
-            label { r#for: "long_notes", "Long notes (optional):" }
-            br {}
-            textarea { id: "long_notes", name: "long_notes", rows: "10", cols: "50" }
-            br {}
+            // label { r#for: "long_notes", "Long notes (optional):" }
+            // br {}
+            // textarea { id: "long_notes", name: "long_notes", rows: "10", cols: "50" }
+            // br {}
 
 
-            // button { "Upload" }
+            button { r#type: "submit", "Upload" }
         }
     }
 }
