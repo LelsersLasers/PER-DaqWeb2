@@ -1,16 +1,13 @@
 use dioxus::prelude::*;
 
 mod assets;
+mod backend;
 mod config;
 mod routes;
+mod ui;
 
 #[cfg(feature = "server")]
 mod s_helpers;
-
-mod backend;
-
-#[cfg(feature = "web")]
-mod ui;
 
 fn main() {
     #[cfg(feature = "web")]
@@ -39,7 +36,7 @@ async fn launch_server(component: fn() -> Element) {
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
 
     let router = axum::Router::new()
-        .serve_dioxus_application(ServeConfigBuilder::default(), component)
+        .serve_dioxus_application(ServeConfig::default(), component)
         .into_make_service();
     axum::serve(listener, router).await.unwrap();
 }
