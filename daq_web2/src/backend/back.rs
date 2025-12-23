@@ -12,23 +12,23 @@ pub async fn create_test(input: String) -> Result<String, ServerFnError> {
 #[server]
 #[post("/upload_logs")]
 pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Result<()> {
+    // TODO: better error type
     println!("Processing uploaded logs...");
     let mut count = 0;
 
-    while let Ok(Some(field)) = form.next_field().await {
+    while let Ok(Some(mut field)) = form.next_field().await {
         count += 1;
         let name = field.name().unwrap_or("<none>").to_string();
         let file_name = field.file_name().unwrap_or("<none>").to_string();
         // let content_type = field.content_type().unwrap_or("<none>").to_string();
-        let bytes = field.bytes().await.expect("Failed to read field bytes");
+        // let bytes = field.bytes().await.expect("Failed to read field bytes");
 
-        // println!(
-        //     "Field: name='{}', file_name='{}', content_type='{}', size={}",
-        //     name,
-        //     file_name,
-        //     content_type,
-        //     bytes.len()
-        // );
+        // TODO: .bytes() when string, .chunk() when file
+        let mut bytes = Vec::new();
+        while let Some(chunk) = field.chunk().await.expect("Failed to read chunk") {
+            bytes.extend_from_slice(&chunk);
+            // TODO: write chunk to file instead of just keeping in memory
+        }
 
         if name == "upload_name" {
             let upload_name = String::from_utf8(bytes.to_vec()).unwrap_or_default();
