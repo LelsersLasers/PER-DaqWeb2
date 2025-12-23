@@ -34,8 +34,10 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             let upload_name = String::from_utf8(bytes.to_vec()).unwrap_or_default();
             println!("Upload name: {}", upload_name);
         } else if name == "start_time" {
-            let start_time = String::from_utf8(bytes.to_vec()).unwrap_or_default();
-            println!("Start time: {}", start_time);
+            let start_time_str = String::from_utf8(bytes.to_vec()).unwrap_or_default();
+            let dt = chrono::NaiveDateTime::parse_from_str(&start_time_str, "%Y-%m-%dT%H:%M")
+                .expect("Invalid datetime");
+            println!("Start time: {}", dt);
         } else if name == "vcan_dbc_file" {
             // Process the DBC file
             println!("Processing DBC file: {}", file_name);

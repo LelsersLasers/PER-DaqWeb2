@@ -549,6 +549,7 @@ name = "daq_web2"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chrono",
  "dioxus",
  "serde",
  "sqlx",
