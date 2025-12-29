@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS Uploads (
 	commit_hash		TEXT NOT NULL,
 	start_time		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
 	upload_time		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
-	upload_status	TEXT NOT NULL CHECK (upload_status IN ('in_progress', 'completed', 'failed'))
+    short_comments  TEXT,
+    long_notes      TEXT,
+	upload_status	TEXT NOT NULL CHECK (upload_status IN ('in_progress', 'completed'))
 );
 
 CREATE TABLE IF NOT EXISTS Logs (
@@ -20,7 +22,7 @@ CREATE TABLE IF NOT EXISTS Logs (
 CREATE TABLE IF NOT EXISTS Messages (
 	id 				INTEGER PRIMARY KEY,
 	log_id			INTEGER NOT NULL,
-	msg_id			INTEGER NOT NULL,
+	arbitration_id  INTEGER NOT NULL,
 	msg_name		TEXT NOT NULL,
 	timestamp_raw	INTEGER NOT NULL,
 	timestamp_adj   TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
