@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS UploadTagPairs (
 	FOREIGN KEY (upload_tag_id) REFERENCES UploadTags(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS ProcessingInfos (
+    id               INTEGER PRIMARY KEY,
+    upload_id        INTEGER NOT NULL,
+    timestamp_server TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS
+    info_type        TEXT NOT NULL CHECK (info_type IN ('info', 'warning', 'error')),
+    string           TEXT NOT NULL,
+)
+
 
 -- PRESETS -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS Presets (
