@@ -27,6 +27,9 @@ fn main() {
 
 #[cfg(feature = "server")]
 async fn launch_server(component: fn() -> Element) {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
     let ip =
         dioxus::cli_config::server_ip().unwrap_or_else(|| config::SERVER_ADDR.parse().unwrap());
     let port = dioxus::cli_config::server_port().unwrap_or(config::SERVER_PORT);

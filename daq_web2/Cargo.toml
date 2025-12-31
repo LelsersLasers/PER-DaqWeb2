@@ -12,13 +12,15 @@ axum = { version = "0.8.4", optional = true }
 tokio = { version = "1.48.0", features = ["full"], optional = true }
 sqlx = { version = "0.8.2", features = ["sqlite", "macros", "runtime-tokio-rustls"], optional = true }
 tracing = { version = "0.1.44", optional = true }
+tracing-subscriber = { version = "0.3.22", optional = true }
+anyhow = "1.0.100"
 serde = "1.0.228"
 chrono = "0.4"
 
 [features]
 default = ["web"]
 web = ["dioxus/web"]
-server = ["dioxus/server", "dep:axum", "dep:tokio", "dep:sqlx", "dep:tracing"]
+server = ["dioxus/server", "dep:axum", "dep:tokio", "dep:sqlx", "dep:tracing", "dep:tracing-subscriber"]
 # desktop = ["dioxus/desktop"]
 # mobile = ["dioxus/mobile"]
 
