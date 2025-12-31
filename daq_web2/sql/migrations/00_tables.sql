@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS Messages (
 	msg_name		TEXT NOT NULL,
 	timestamp_raw	INTEGER NOT NULL,
 	timestamp_adj   TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
-	msg_desc		TEXT,
 
 	FOREIGN KEY (log_id) REFERENCES Logs(id) ON DELETE CASCADE
 );
