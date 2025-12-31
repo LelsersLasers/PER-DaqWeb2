@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 #[cfg(feature = "server")]
-use crate::s_helpers;
+use crate::{s_helpers, backend};
 
 #[server]
 pub async fn create_test(input: String) -> Result<String, ServerFnError> {
@@ -13,7 +13,8 @@ pub async fn create_test(input: String) -> Result<String, ServerFnError> {
 #[post("/upload_logs")]
 pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Result<()> {
     // TODO: better error type
-    println!("Processing uploaded logs...");
+    // println!("Processing uploaded logs...");
+    backend::log::insert_log(0, backend::log::LogLevel::Info, "Started processing upload").await;
     let mut count = 0;
 
     while let Ok(Some(mut field)) = form.next_field().await {
