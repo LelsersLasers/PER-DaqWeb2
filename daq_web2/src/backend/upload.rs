@@ -18,7 +18,6 @@ const DATA_OFFSET: usize = 11;
 
 const BATCH_SIZE: usize = 100;
 
-
 #[cfg(feature = "server")]
 fn upload_id_to_folder_name(upload_id: Option<i64>) -> String {
     format!("{:03}", upload_id.expect("Upload ID should be set here"))
@@ -181,8 +180,8 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
         upload_id.expect("Upload ID should be set here")
     );
 
-    let folder_path = std::path::Path::new(config::RAW_FOLDER)
-        .join(upload_id_to_folder_name(upload_id));
+    let folder_path =
+        std::path::Path::new(config::RAW_FOLDER).join(upload_id_to_folder_name(upload_id));
     let file_path = folder_path.join(config::META_FILE);
     let mut file = tokio::fs::File::create(&file_path).await?;
     let metadata = serde_json::json!({
@@ -277,14 +276,20 @@ async fn process_uploaded_logs(upload_id: i64, start_time: chrono::NaiveDateTime
         parse_log_file(upload_id, &log_file, &parser, db, start_time).await;
     }
 
+    tracing::info!("Completed processing for upload ID {}", upload_id);
+
     let query = "UPDATE Uploads SET upload_status = 'completed' WHERE id = ?";
     sqlx::query(query)
         .bind(upload_id)
         .execute(db)
         .await
         .expect("Failed to update upload status to completed");
+    let _ = backend::log::insert_log(
+        upload_id,
+        backend::log::LogLevel::Info,
+        "Upload processing completed successfully",
+    );
 }
-
 
 #[cfg(feature = "server")]
 struct ParsedMessage {
@@ -396,9 +401,10 @@ async fn parse_log_file(
                 e
             );
             tracing::error!("{}", error_message);
-            let _ = backend::log::insert_log(upload_id, backend::log::LogLevel::Error, &error_message)
-                .await
-                .expect("Failed to log final message batch insertion error");
+            let _ =
+                backend::log::insert_log(upload_id, backend::log::LogLevel::Error, &error_message)
+                    .await
+                    .expect("Failed to log final message batch insertion error");
         }
     }
 
@@ -424,7 +430,6 @@ async fn insert_msg_batch(
     log_id: i64,
     batch: &[ParsedMessage],
 ) -> Result<(), sqlx::Error> {
-
     let mut tx = db.begin().await?;
 
     for parsed_msg in batch {
@@ -455,7 +460,6 @@ async fn insert_msg_batch(
                 .await?;
         }
     }
-    
 
     tx.commit().await?;
     Ok(())
