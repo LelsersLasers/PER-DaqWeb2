@@ -3,3 +3,4 @@ pub const SERVER_ADDR: &str = "0.0.0.0";
 pub const SQLITE_DB: &str = "per_daq_web2.db";
 pub const BODY_LIMIT: usize = 250 * 1024 * 1024; // 250 MB
 pub const RAW_FOLDER: &str = "../uploaded_raw_data";
+pub const META_FILE: &str = "upload_metadata.json";

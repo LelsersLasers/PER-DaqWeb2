@@ -124,7 +124,7 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             let file_name_raw = field.file_name().unwrap_or("vcan_file.dbc");
             let file_name = std::path::Path::new(file_name_raw)
                 .file_name()
-                .unwrap_or(std::ffi::OsStr::new("vcan_file.dbc"))
+                .expect("Failed to get VCAN DBC file name")
                 .to_string_lossy();
             let file_path = folder_path.join(file_name.as_ref());
             let mut file = tokio::fs::File::create(&file_path).await?;
@@ -138,7 +138,7 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             let file_name_raw = field.file_name().unwrap_or("log_file.log");
             let file_name = std::path::Path::new(file_name_raw)
                 .file_name()
-                .unwrap_or(std::ffi::OsStr::new("log_file.log"))
+                .expect("Failed to get log file name")
                 .to_string_lossy();
             let file_path = folder_path.join(file_name.as_ref());
             if file_path.exists() {
@@ -165,6 +165,27 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             ))));
         }
     }
+
+    tracing::info!(
+        "Completed download for upload ID {}",
+        upload_id.expect("Upload ID should be set here")
+    );
+
+    let folder_path = std::path::Path::new(config::RAW_FOLDER).join(
+        upload_id.expect("Upload ID should be set here").to_string(),
+    );
+    let file_path = folder_path.join(config::META_FILE);
+    let mut file = tokio::fs::File::create(&file_path).await?;
+    let metadata = serde_json::json!({
+        "upload_name": upload_form.upload_name,
+        "start_time": upload_form.start_time.map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string()),
+        "upload_time": upload_form.upload_time.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
+        "commit_hash": upload_form.commit_hash,
+        "short_comments": upload_form.short_comments,
+        "long_notes": upload_form.long_notes,
+    });
+    let metadata_string = serde_json::to_string_pretty(&metadata)?;
+    tokio::io::AsyncWriteExt::write_all(&mut file, metadata_string.as_bytes()).await?;
 
     Ok(())
 }
