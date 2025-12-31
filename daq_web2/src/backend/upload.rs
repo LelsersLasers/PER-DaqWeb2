@@ -16,6 +16,8 @@ const ID_OFFSET: usize = 9;
 const DLC_OFFSET: usize = 10;
 const DATA_OFFSET: usize = 11;
 
+const BATCH_SIZE: usize = 100;
+
 
 #[cfg(feature = "server")]
 fn upload_id_to_folder_name(upload_id: Option<i64>) -> String {
@@ -283,6 +285,13 @@ async fn process_uploaded_logs(upload_id: i64, start_time: chrono::NaiveDateTime
         .expect("Failed to update upload status to completed");
 }
 
+
+#[cfg(feature = "server")]
+struct ParsedMessage {
+    timestamp_raw: u32,
+    timestamp_adj: chrono::NaiveDateTime,
+    decoded: can_decode::DecodedMessage,
+}
 #[cfg(feature = "server")]
 async fn parse_log_file(
     upload_id: i64,
@@ -295,8 +304,6 @@ async fn parse_log_file(
         .await
         .expect("Failed to read log file");
 
-    // TODO: batch/transaction inserts for performance
-
     let query = "INSERT INTO Logs (file_name, upload_id) VALUES (?, ?)";
     let result = sqlx::query(query)
         .bind(in_file.file_name().unwrap().to_string_lossy().to_string())
@@ -305,6 +312,8 @@ async fn parse_log_file(
         .await
         .expect("Failed to insert log file entry");
     let log_id = result.last_insert_rowid();
+
+    let mut parsed = Vec::with_capacity(BATCH_SIZE);
 
     let mut offset = 0;
     while offset + MSG_BYTE_LEN <= content.len() {
@@ -332,30 +341,30 @@ async fn parse_log_file(
 
         match parser.decode_msg(arb_id, data) {
             Some(decoded) => {
-                // TODO: fix start time logic
-                let timestamp_adj = start_time + chrono::Duration::milliseconds(timestamp as i64);
-                let query = "INSERT INTO Messages (log_id, arbitration_id, msg_name, timestamp_raw, timestamp_adj) VALUES (?, ?, ?, ?, ?)";
-                let result = sqlx::query(query)
-                    .bind(log_id)
-                    .bind(arb_id as i64)
-                    .bind(decoded.name.clone())
-                    .bind(timestamp as i64)
-                    .bind(timestamp_adj.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
-                    .execute(db)
-                    .await
-                    .expect("Failed to insert message entry");
-                let msg_id = result.last_insert_rowid();
-
-                for (signal_name, signal_value) in decoded.signals.iter() {
-                    let query = "INSERT INTO Signals (msg_id, signal_name, signal_value, signal_unit) VALUES (?, ?, ?, ?)";
-                    sqlx::query(query)
-                        .bind(msg_id)
-                        .bind(signal_name.clone())
-                        .bind(signal_value.value)
-                        .bind(signal_value.unit.clone())
-                        .execute(db)
+                parsed.push(ParsedMessage {
+                    timestamp_raw: timestamp,
+                    timestamp_adj: start_time + chrono::Duration::milliseconds(timestamp as i64),
+                    // TODO: fix start time logic
+                    decoded,
+                });
+                if parsed.len() >= BATCH_SIZE {
+                    if let Err(e) = insert_msg_batch(db, log_id, &parsed).await {
+                        let error_message = format!(
+                            "{} - {}: Failed to insert message batch: {}",
+                            upload_id,
+                            in_file.display(),
+                            e
+                        );
+                        tracing::error!("{}", error_message);
+                        let _ = backend::log::insert_log(
+                            upload_id,
+                            backend::log::LogLevel::Error,
+                            &error_message,
+                        )
                         .await
-                        .expect("Failed to insert signal entry");
+                        .expect("Failed to log message batch insertion error");
+                    }
+                    parsed.clear();
                 }
             }
             None => {
@@ -378,6 +387,21 @@ async fn parse_log_file(
         }
     }
 
+    if !parsed.is_empty() {
+        if let Err(e) = insert_msg_batch(db, log_id, &parsed).await {
+            let error_message = format!(
+                "{} - {}: Failed to insert final message batch: {}",
+                upload_id,
+                in_file.display(),
+                e
+            );
+            tracing::error!("{}", error_message);
+            let _ = backend::log::insert_log(upload_id, backend::log::LogLevel::Error, &error_message)
+                .await
+                .expect("Failed to log final message batch insertion error");
+        }
+    }
+
     let extra_bytes = content.len() - offset;
     if extra_bytes > 0 {
         let warning_message = format!(
@@ -392,4 +416,47 @@ async fn parse_log_file(
                 .await
                 .expect("Failed to log extra bytes warning");
     }
+}
+
+#[cfg(feature = "server")]
+async fn insert_msg_batch(
+    db: &sqlx::SqlitePool,
+    log_id: i64,
+    batch: &[ParsedMessage],
+) -> Result<(), sqlx::Error> {
+
+    let mut tx = db.begin().await?;
+
+    for parsed_msg in batch {
+        let query = "INSERT INTO Messages (log_id, arbitration_id, msg_name, timestamp_raw, timestamp_adj) VALUES (?, ?, ?, ?, ?)";
+        let result = sqlx::query(query)
+            .bind(log_id)
+            .bind(parsed_msg.decoded.msg_id as i64)
+            .bind(parsed_msg.decoded.name.clone())
+            .bind(parsed_msg.timestamp_raw as i64)
+            .bind(
+                parsed_msg
+                    .timestamp_adj
+                    .format("%Y-%m-%d %H:%M:%S%.3f")
+                    .to_string(),
+            )
+            .execute(&mut *tx)
+            .await?;
+        let msg_id = result.last_insert_rowid();
+
+        for (signal_name, signal_value) in parsed_msg.decoded.signals.iter() {
+            let query = "INSERT INTO Signals (msg_id, signal_name, signal_value, signal_unit) VALUES (?, ?, ?, ?)";
+            sqlx::query(query)
+                .bind(msg_id)
+                .bind(signal_name.clone())
+                .bind(signal_value.value)
+                .bind(signal_value.unit.clone())
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+    
+
+    tx.commit().await?;
+    Ok(())
 }
