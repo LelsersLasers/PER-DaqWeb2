@@ -1,4 +1,6 @@
-use crate::s_helpers;
+// logs.rs is server side only
+
+use crate::backend;
 
 pub enum LogLevel {
     Info,
@@ -22,7 +24,7 @@ pub async fn insert_log(
     level: LogLevel,
     message: &str,
 ) -> Result<sqlx::sqlite::SqliteQueryResult, sqlx::Error> {
-    let db = s_helpers::db::get_db_pool().await;
+    let db = backend::db::get_db_pool().await;
     let timestamp_server = chrono::Utc::now().naive_utc();
     let query = "INSERT INTO ProcessingInfos (upload_id, timestamp_server, info_type, string) VALUES (?, ?, ?, ?)";
     sqlx::query(query)

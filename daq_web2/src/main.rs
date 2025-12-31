@@ -6,9 +6,6 @@ mod config;
 mod routes;
 mod ui;
 
-#[cfg(feature = "server")]
-mod s_helpers;
-
 fn main() {
     #[cfg(feature = "web")]
     // Hydrate the application on the client

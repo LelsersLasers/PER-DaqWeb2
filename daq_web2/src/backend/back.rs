@@ -3,12 +3,12 @@ use dioxus::prelude::*;
 use crate::config;
 
 #[cfg(feature = "server")]
-use crate::{backend, s_helpers};
+use crate::backend;
 
 #[server]
 pub async fn create_test(input: String) -> Result<String, ServerFnError> {
     tracing::info!("in create_test with input: {}", input);
-    let db = s_helpers::db::get_db_pool().await;
+    let db = backend::db::get_db_pool().await;
     Ok(format!("okay test with input: {}", input))
 }
 
@@ -76,7 +76,7 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             }
 
             // We know we didn't miss a field, so we can continue
-            let db = s_helpers::db::get_db_pool().await;
+            let db = backend::db::get_db_pool().await;
             let formated_start_time = upload_form
                 .start_time
                 .unwrap()
@@ -171,9 +171,8 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
         upload_id.expect("Upload ID should be set here")
     );
 
-    let folder_path = std::path::Path::new(config::RAW_FOLDER).join(
-        upload_id.expect("Upload ID should be set here").to_string(),
-    );
+    let folder_path = std::path::Path::new(config::RAW_FOLDER)
+        .join(upload_id.expect("Upload ID should be set here").to_string());
     let file_path = folder_path.join(config::META_FILE);
     let mut file = tokio::fs::File::create(&file_path).await?;
     let metadata = serde_json::json!({

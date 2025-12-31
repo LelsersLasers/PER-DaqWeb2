@@ -1,3 +1,5 @@
+// db.rs is server side only
+
 use crate::config;
 
 static G_APP_STATE: tokio::sync::OnceCell<sqlx::SqlitePool> = tokio::sync::OnceCell::const_new();

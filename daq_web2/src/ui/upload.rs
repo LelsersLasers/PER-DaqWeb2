@@ -2,7 +2,6 @@ use dioxus::prelude::*;
 
 use crate::backend;
 
-
 enum UploadResult {
     Success,
     Failure(String),
