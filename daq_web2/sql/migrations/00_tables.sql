@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS ProcessingInfos (
     upload_id        INTEGER NOT NULL,
     timestamp_server TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS
     info_type        TEXT NOT NULL CHECK (info_type IN ('info', 'warning', 'error')),
-    string           TEXT NOT NULL,
-)
+    string           TEXT NOT NULL
+);
 
 
 -- PRESETS -----------------------------------------------------------------------------
