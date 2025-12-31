@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS Signals (
 	signal_name		TEXT NOT NULL,
 	signal_value	REAL NOT NULL,
 	signal_unit		TEXT,
-	signal_desc		TEXT,
 
 	FOREIGN KEY (msg_id) REFERENCES Messages(id) ON DELETE CASCADE
 );
