@@ -71,7 +71,7 @@ pub fn Upload() -> Element {
 
                 uploading.set(true);
 
-                let upload_status = backend::back::upload_logs(e.into()).await;
+                let upload_status = backend::upload::upload_logs(e.into()).await;
                 match upload_status {
                     Ok(_) => upload_result.set(Some(UploadResult::Success)),
                     Err(err) => upload_result.set(Some(UploadResult::Failure(err.to_string()))),
