@@ -50,12 +50,8 @@ async fn launch_server(component: fn() -> Element) {
 fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: assets::FAVICON }
-        document::Link {
-            rel: "stylesheet", href: assets::MAIN_CSS
-        }
-        document::Link {
-            rel: "stylesheet", href: assets::TAILWIND_CSS
-        }
+        document::Link { rel: "stylesheet", href: assets::MAIN_CSS }
+        document::Link { rel: "stylesheet", href: assets::TAILWIND_CSS }
         Router::<routes::Route> {}
     }
 }
