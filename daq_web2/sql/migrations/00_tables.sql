@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS Uploads (
 	commit_hash		TEXT NOT NULL,
 	start_time		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
 	upload_time		TEXT NOT NULL, -- YYYY-MM-DD HH:MM:SS.SSS
-    short_comments  TEXT,
-    long_notes      TEXT,
+    short_comments  TEXT NOT NULL, -- May be blank
+    long_notes      TEXT NOT NULL, -- May be blank
 	upload_status	TEXT NOT NULL CHECK (upload_status IN ('in_progress', 'completed'))
 );
 
