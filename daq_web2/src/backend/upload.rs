@@ -5,6 +5,9 @@ use crate::config;
 #[cfg(feature = "server")]
 use crate::backend;
 
+fn upload_id_to_folder_name(upload_id: Option<i64>) -> String {
+    format!("{:03}", upload_id.expect("Upload ID should be set here"))
+}
 #[derive(Default)]
 struct UploadLogsFormMetadata {
     // This field order matches the form field order in the HTML
@@ -95,12 +98,15 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             backend::log::insert_log(
                 upload_id.expect("Upload ID should be set here"),
                 backend::log::LogLevel::Info,
-                "Created new upload entry",
+                &format!(
+                    "Created new upload entry: {}",
+                    upload_id.expect("Upload ID should be set here")
+                ),
             )
             .await?;
 
-            let folder_path = std::path::Path::new(config::RAW_FOLDER)
-                .join(upload_id.expect("Upload ID should be set here").to_string());
+            let folder_path =
+                std::path::Path::new(config::RAW_FOLDER).join(upload_id_to_folder_name(upload_id));
             if folder_path.exists() {
                 tracing::error!(
                     "Upload folder already exists for upload ID {}",
@@ -124,8 +130,8 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             }
         } else if name == "log_files" {
             // Process log files similarly to vcan_dbc_file
-            let upload_id = upload_id.expect("Upload ID should be set before log_files");
-            let folder_path = std::path::Path::new(config::RAW_FOLDER).join(upload_id.to_string());
+            let folder_path =
+                std::path::Path::new(config::RAW_FOLDER).join(upload_id_to_folder_name(upload_id));
             let file_name_raw = field.file_name().unwrap_or("log_file.log");
             let file_name = std::path::Path::new(file_name_raw)
                 .file_name()
@@ -136,12 +142,11 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
                 tracing::error!(
                     "Log file {} already exists for upload ID {}",
                     file_name,
-                    upload_id
                 );
                 return Err(dioxus::CapturedError(std::sync::Arc::new(anyhow::anyhow!(
                     "Log file {} already exists for upload ID {}",
                     file_name,
-                    upload_id
+                    upload_id.expect("Upload ID should be set here")
                 ))));
             }
             let mut file = tokio::fs::File::create(&file_path).await?;
@@ -163,10 +168,11 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
     );
 
     let folder_path = std::path::Path::new(config::RAW_FOLDER)
-        .join(upload_id.expect("Upload ID should be set here").to_string());
+        .join(upload_id_to_folder_name(upload_id));
     let file_path = folder_path.join(config::META_FILE);
     let mut file = tokio::fs::File::create(&file_path).await?;
     let metadata = serde_json::json!({
+        "upload_id": upload_id.expect("Upload ID should be set here"),
         "upload_name": upload_form.upload_name,
         "start_time": upload_form.start_time.map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.3f").to_string()),
         "upload_time": upload_form.upload_time.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
