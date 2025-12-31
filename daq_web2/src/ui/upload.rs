@@ -2,23 +2,65 @@ use dioxus::prelude::*;
 
 use crate::backend;
 
+
+enum UploadResult {
+    Success,
+    Failure(String),
+}
+
 #[component]
 #[allow(non_snake_case)]
 pub fn Upload() -> Element {
-    let mut result = use_signal(|| None::<String>);
+    let mut upload_result = use_signal(|| None::<UploadResult>);
+    let mut uploading = use_signal(|| false);
 
     rsx! {
         h1 { "Upload Page" }
 
-        // if let Some(msg) = result().as_ref() {
-        //     rsx! {
-        //         p { "{msg}" }
-        //     }
-        // } else {
-        //     rsx! {}
-        // }
-        if let Some(msg) = result.read().as_ref() {
-            p { "{msg}" }
+        if *uploading.read() {
+            dialog {
+                class: "fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center",
+                open: true,
+                div { class: "bg-white p-6 rounded shadow-md text-center",
+                    h2 { "Uploading..." }
+                    p { "Please wait while your files are being uploaded. Do not close this tab." }
+                }
+            }
+        }
+
+        match upload_result.read().as_ref() {
+            Some(UploadResult::Success) => rsx! {
+                dialog {
+                    class: "fixed top-0 left-0 w-full h-full bg-green-200 bg-opacity-50 flex items-center justify-center",
+                    open: true,
+                    div { class: "bg-white p-6 rounded shadow-md text-center",
+                        h2 { "Upload Successful" }
+                        button {
+                            onclick: move |_| {
+                                upload_result.set(None);
+                            },
+                            "Close"
+                        }
+                    }
+                }
+            },
+            Some(UploadResult::Failure(err_msg)) => rsx! {
+                dialog {
+                    class: "fixed top-0 left-0 w-full h-full bg-red-200 bg-opacity-50 flex items-center justify-center",
+                    open: true,
+                    div { class: "bg-white p-6 rounded shadow-md text-center",
+                        h2 { "Upload Failed" }
+                        pre { "{err_msg}" }
+                        button {
+                            onclick: move |_| {
+                                upload_result.set(None);
+                            },
+                            "Close"
+                        }
+                    }
+                }
+            },
+            None => rsx! {},
         }
 
         form {
@@ -28,11 +70,15 @@ pub fn Upload() -> Element {
             onsubmit: move |e| async move {
                 e.prevent_default();
 
+                uploading.set(true);
+
                 let upload_status = backend::back::upload_logs(e.into()).await;
                 match upload_status {
-                    Ok(_) => result.set(Some("Upload successful!".to_string())),
-                    Err(err) => result.set(Some(format!("Upload failed: {}", err))),
+                    Ok(_) => upload_result.set(Some(UploadResult::Success)),
+                    Err(err) => upload_result.set(Some(UploadResult::Failure(err.to_string()))),
                 }
+
+                uploading.set(false);
             },
 
             // upload_logs relies on field order in this form. The files must come last.
