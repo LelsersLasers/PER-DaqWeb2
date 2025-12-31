@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
 
-use crate::config;
-
 #[cfg(feature = "server")]
 use crate::backend;
 

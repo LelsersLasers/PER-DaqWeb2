@@ -5,9 +5,22 @@ use crate::config;
 #[cfg(feature = "server")]
 use crate::backend;
 
+pub const CAN_EFF_FLAG: u32 = 0x80000000;
+pub const CAN_EXT_ID_MASK: u32 = 0x1FFFFFFF;
+pub const CAN_STD_ID_MASK: u32 = 0x000007FF;
+
+pub const FRAME_TYPE_OFFSET: usize = 1;
+pub const MSG_BYTE_LEN: usize = 19;
+pub const TIMESTAMP_OFFSET: usize = 5;
+pub const ID_OFFSET: usize = 9;
+pub const DLC_OFFSET: usize = 10;
+pub const DATA_OFFSET: usize = 11;
+
+#[cfg(feature = "server")]
 fn upload_id_to_folder_name(upload_id: Option<i64>) -> String {
     format!("{:03}", upload_id.expect("Upload ID should be set here"))
 }
+
 #[derive(Default)]
 struct UploadLogsFormMetadata {
     // This field order matches the form field order in the HTML
@@ -118,16 +131,12 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
                 ))));
             }
             std::fs::create_dir_all(folder_path.as_path())?;
-            let file_name_raw = field.file_name().unwrap_or("vcan_file.dbc");
-            let file_name = std::path::Path::new(file_name_raw)
-                .file_name()
-                .expect("Failed to get VCAN DBC file name")
-                .to_string_lossy();
-            let file_path = folder_path.join(file_name.as_ref());
+            let file_path = folder_path.join(config::DBC_FILE_NAME);
             let mut file = tokio::fs::File::create(&file_path).await?;
             while let Some(chunk) = field.chunk().await? {
                 tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await?;
             }
+            tokio::fs::File::sync_all(&file).await?;
         } else if name == "log_files" {
             // Process log files similarly to vcan_dbc_file
             let folder_path =
@@ -142,6 +151,7 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
                 tracing::error!(
                     "Log file {} already exists for upload ID {}",
                     file_name,
+                    upload_id.expect("Upload ID should be set here")
                 );
                 return Err(dioxus::CapturedError(std::sync::Arc::new(anyhow::anyhow!(
                     "Log file {} already exists for upload ID {}",
@@ -153,6 +163,7 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
             while let Some(chunk) = field.chunk().await? {
                 tokio::io::AsyncWriteExt::write_all(&mut file, &chunk).await?;
             }
+            tokio::fs::File::sync_all(&file).await?;
         } else {
             tracing::error!("Unknown field name encountered: {}", name);
             return Err(dioxus::CapturedError(std::sync::Arc::new(anyhow::anyhow!(
@@ -182,6 +193,202 @@ pub async fn upload_logs(mut form: dioxus_fullstack::MultipartFormData) -> Resul
     });
     let metadata_string = serde_json::to_string_pretty(&metadata)?;
     tokio::io::AsyncWriteExt::write_all(&mut file, metadata_string.as_bytes()).await?;
+    tokio::fs::File::sync_all(&file).await?;
+
+    tokio::spawn(async move {
+        process_uploaded_logs(
+            upload_id.expect("Upload ID should be set here"),
+            upload_form
+                .start_time
+                .expect("Start time should be set here"),
+        )
+        .await;
+    });
 
     Ok(())
+}
+
+#[cfg(feature = "server")]
+async fn process_uploaded_logs(upload_id: i64, start_time: chrono::NaiveDateTime) {
+    tracing::info!("Starting processing for upload ID {}", upload_id);
+
+    let db = backend::db::get_db_pool().await;
+    let folder_path =
+        std::path::Path::new(config::RAW_FOLDER).join(upload_id_to_folder_name(Some(upload_id)));
+    let dbc_file = folder_path.join(config::DBC_FILE_NAME);
+    if !dbc_file.exists() {
+        let error_message = format!(
+            "DBC file not found for upload ID {}: expected at {}",
+            upload_id,
+            dbc_file.display()
+        );
+        tracing::error!("{}", error_message);
+        let _ = backend::log::insert_log(upload_id, backend::log::LogLevel::Error, &error_message)
+            .await
+            .expect("Failed to log DBC file missing error");
+        return;
+    }
+
+    let parser = match can_decode::Parser::from_dbc_file(&dbc_file) {
+        Ok(p) => p,
+        Err(e) => {
+            let error_message = format!(
+                "Failed to create DBC parser for upload ID {}: {}",
+                upload_id, e
+            );
+            tracing::error!("{}", error_message);
+            let _ =
+                backend::log::insert_log(upload_id, backend::log::LogLevel::Error, &error_message)
+                    .await
+                    .expect("Failed to log DBC parser creation error");
+            return;
+        }
+    };
+
+    let mut read_paths = tokio::fs::read_dir(&folder_path)
+        .await
+        .expect("Failed to read upload folder");
+    let mut log_file_paths = vec![];
+    while let Some(entry) = read_paths
+        .next_entry()
+        .await
+        .expect("Failed to read directory entry")
+    {
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("log") {
+            log_file_paths.push(path);
+        }
+    }
+    log_file_paths.sort();
+
+    for log_file in log_file_paths {
+        let file_name = log_file
+            .file_name()
+            .and_then(|s| s.to_str())
+            .expect("Failed to get log file name");
+        tracing::info!(
+            "Processing log file {} for upload ID {}",
+            file_name,
+            upload_id
+        );
+        parse_log_file(upload_id, &log_file, &parser, db, start_time).await;
+    }
+
+    let query = "UPDATE Uploads SET upload_status = 'completed' WHERE id = ?";
+    sqlx::query(query)
+        .bind(upload_id)
+        .execute(db)
+        .await
+        .expect("Failed to update upload status to completed");
+}
+
+#[cfg(feature = "server")]
+async fn parse_log_file(
+    upload_id: i64,
+    in_file: &std::path::Path,
+    parser: &can_decode::Parser,
+    db: &sqlx::SqlitePool,
+    start_time: chrono::NaiveDateTime,
+) {
+    let content = tokio::fs::read(in_file)
+        .await
+        .expect("Failed to read log file");
+
+    // TODO: batch/transaction inserts for performance
+
+    let query = "INSERT INTO Logs (file_name, upload_id) VALUES (?, ?)";
+    let result = sqlx::query(query)
+        .bind(in_file.file_name().unwrap().to_string_lossy().to_string())
+        .bind(upload_id)
+        .execute(db)
+        .await
+        .expect("Failed to insert log file entry");
+    let log_id = result.last_insert_rowid();
+
+    let mut offset = 0;
+    while offset + MSG_BYTE_LEN <= content.len() {
+        let timestamp = u32::from_le_bytes(
+            content[offset + FRAME_TYPE_OFFSET..offset + TIMESTAMP_OFFSET]
+                .try_into()
+                .unwrap(),
+        );
+        let can_id = u32::from_le_bytes(
+            content[offset + TIMESTAMP_OFFSET..offset + ID_OFFSET]
+                .try_into()
+                .unwrap(),
+        );
+        // let _bus_id = content[offset + consts::ID_OFFSET];
+        let dlc = content[offset + DLC_OFFSET];
+        let data = &content[offset + DATA_OFFSET..offset + DATA_OFFSET + dlc as usize];
+        offset += MSG_BYTE_LEN;
+
+        let is_extended = (can_id & CAN_EFF_FLAG) != 0;
+        let arb_id = if is_extended {
+            can_id & CAN_EXT_ID_MASK
+        } else {
+            can_id & CAN_STD_ID_MASK
+        };
+
+        match parser.decode_msg(arb_id, data) {
+            Some(decoded) => {
+                // TODO: fix start time logic
+                let timestamp_adj = start_time + chrono::Duration::milliseconds(timestamp as i64);
+                let query = "INSERT INTO Messages (log_id, arbitration_id, msg_name, timestamp_raw, timestamp_adj) VALUES (?, ?, ?, ?, ?)";
+                let result = sqlx::query(query)
+                    .bind(log_id)
+                    .bind(arb_id as i64)
+                    .bind(decoded.name.clone())
+                    .bind(timestamp as i64)
+                    .bind(timestamp_adj.format("%Y-%m-%d %H:%M:%S%.3f").to_string())
+                    .execute(db)
+                    .await
+                    .expect("Failed to insert message entry");
+                let msg_id = result.last_insert_rowid();
+
+                for (signal_name, signal_value) in decoded.signals.iter() {
+                    let query = "INSERT INTO Signals (msg_id, signal_name, signal_value, signal_unit) VALUES (?, ?, ?, ?)";
+                    sqlx::query(query)
+                        .bind(msg_id)
+                        .bind(signal_name.clone())
+                        .bind(signal_value.value)
+                        .bind(signal_value.unit.clone())
+                        .execute(db)
+                        .await
+                        .expect("Failed to insert signal entry");
+                }
+            }
+            None => {
+                let error_message = format!(
+                    "{} - {}: Failed to decode message with ID {:X} at timestamp {}",
+                    upload_id,
+                    in_file.display(),
+                    arb_id,
+                    timestamp
+                );
+                tracing::warn!("{}", error_message);
+                let _ = backend::log::insert_log(
+                    upload_id,
+                    backend::log::LogLevel::Warning,
+                    &error_message,
+                )
+                .await
+                .expect("Failed to log message decoding warning");
+            }
+        }
+    }
+
+    let extra_bytes = content.len() - offset;
+    if extra_bytes > 0 {
+        let warning_message = format!(
+            "{} - {}: {} extra bytes at end of file",
+            upload_id,
+            in_file.display(),
+            extra_bytes
+        );
+        tracing::warn!("{}", warning_message);
+        let _ =
+            backend::log::insert_log(upload_id, backend::log::LogLevel::Warning, &warning_message)
+                .await
+                .expect("Failed to log extra bytes warning");
+    }
 }
